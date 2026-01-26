@@ -1,0 +1,3 @@
+eta,beta,expiration,mu,sigma,theta,inspection_deviation,inspection_threshold,replacement,inspection,component,failure,n_systems,n_events,time_origin,id_0_component,id_0_system,output_data_filepath
+720,3,792.0,168,25.2,12,0.05,0.5,1000,100,100,1200,10,10000,0,0,0,sample_system_dataset_0.csv
+720,3,792.0000000000001,168,25.2,12,0.05,0.5,1000,100,100,1200,10,10000,0,0,0,sample_system_dataset_1.csv

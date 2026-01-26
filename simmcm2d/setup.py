@@ -12,7 +12,6 @@ setup(
       "scipy",
       "pandas",
       "matplotlib",
-      "ipykernel",
-    #   "tables"
+      "ipykernel"
    ],
 )
