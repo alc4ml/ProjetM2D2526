@@ -1,4 +1,4 @@
-Simulator Marcel's Company M2 des Données - SimMCM2D
+# Simulator Marcel's Company M2 des Données - SimMCM2D
 
 This package contains the code necessary to install and utilize the simulator of several events regarding the specifications proposed.
 
