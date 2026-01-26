@@ -1,0 +1,23 @@
+{
+    "param": {
+        "eta": 720,
+        "beta": 3,
+        "expiration": 792,
+        "mu": 168,
+        "sigma": 25.2,
+        "theta": 12,
+        "inspection_deviation": 0.05,
+        "inspection_threshold": 0.5
+    },
+    "costs": {
+        "replacement": 1000,
+        "inspection": 100,
+        "component": 100,
+        "failure": 1200
+    },
+    "n_systems": 10,
+    "n_events": 10000,
+    "time_origin": 0,
+    "id_0_component": 0,
+    "id_0_system": 0
+}
