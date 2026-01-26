@@ -235,7 +235,7 @@ class Manager:
             'FF':ff,
             'cost_event':event_cost,
             'cost_cumulated':system.cost_cumulated}
-
+        
         return event_data
     
 

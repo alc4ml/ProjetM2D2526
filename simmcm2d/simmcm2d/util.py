@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from .classes import *
 
@@ -16,8 +17,9 @@ def system_factory(id_0, component_factory):
         yield System(id_system, component)
 
 
-def sample_datasets(param, costs, n_systems = 1, n_events = 1000, time_origin=0,
-                    id_0_component=0, id_0_system=0):
+def sample_datasets(param, costs, n_systems = 1, n_events = 1000,
+                    time_origin=0, id_0_component=0, id_0_system=0,
+                    output_data_filepath=None, output_table_filepath=None):
 
     c_factory = component_factory(
         id_0=id_0_component,
@@ -52,5 +54,41 @@ def sample_datasets(param, costs, n_systems = 1, n_events = 1000, time_origin=0,
     system_df.component_age = system_df.component_age.round(2)
     system_df.usage_since_last_event_h = system_df.usage_since_last_event_h.round(2)
 
+    # save generated data if path given
+    if output_data_filepath is not None:
+        system_df.to_csv(output_data_filepath)
+
+    # add report to table if path given
+    if output_table_filepath is not None:
+        try:
+            table_df = pd.read_csv(output_table_filepath)
+        except:
+            table_df = pd.DataFrame()
+        new_row = dict()
+        new_row.update(param)
+        new_row.update(costs)
+        new_row.update({
+            "n_systems": 10,
+            "n_events": 10000,
+            "time_origin": 0,
+            "id_0_component": 0,
+            "id_0_system": 0,
+            "output_data_filepath":output_data_filepath
+        })
+        new_row = pd.DataFrame([new_row])
+        table_df =  pd.concat([table_df, new_row])
+        table_df.to_csv(output_table_filepath, index=False)
+
     return system_df
 
+
+def sample_datasets_conf(configuration_filepth):
+    
+    # read configuration from file
+    with open(configuration_filepth, "r") as file:
+        conf = json.load(file)
+    
+    # decode and return from configuration
+    return sample_datasets(**conf)
+
+    
