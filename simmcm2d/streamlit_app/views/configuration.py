@@ -92,7 +92,7 @@ def page_configuration():
                 0.01,
             )
             param["inspection_deviation"] = st.slider(
-                "Déviation de mesure",
+                "inspection deviation",
                 0.0,
                 0.5,
                 clamp_float(dev, 0.0, 0.5),
@@ -100,7 +100,7 @@ def page_configuration():
             )
 
             st.caption(
-                "L’inspection estime l’usure (CDF Weibull) et ajoute une incertitude "
+                "L’inspection estime l’usure et ajoute une incertitude "
                 "via une loi Beta."
             )
 
