@@ -18,7 +18,7 @@ def nav_button(label, page_name):
 
 nav_button("🛠️ Configuration", "Configuration")
 nav_button("⚙️ Simulation", "Simulation")
-nav_button("📊 Analyse", "Graphes")
+nav_button("📊 Graphes Notebook", "Graphes")
 nav_button("📈 KPI", "KPI")
 
 #Routing
