@@ -2,6 +2,8 @@ import streamlit as st
 from core.session import init_session
 from views.configuration import page_configuration
 from views.simulation import page_simulation
+from views.graphes import page_graphes
+
 
 st.set_page_config(page_title="Maintenance prédictive", layout="wide")
 init_session()
