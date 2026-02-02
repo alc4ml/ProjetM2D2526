@@ -142,8 +142,10 @@ class Manager:
         if has_not_expired and has_not_failled:
             ff = self.inspector.inspect_ff(old_component)
             if not ff:
+                # renew component to reuse
+                old_component.age = 0
                 self.components_reuse.append(old_component)
-        
+
         return ff, component_reuse
     
 
