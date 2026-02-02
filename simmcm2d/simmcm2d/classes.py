@@ -63,7 +63,7 @@ class Inspector:
 
         return replace
     
-    def schedule_next(self, time_last_inspection, mu, sigma):
+    def schedule_inspection(self, time_last_inspection, mu, sigma):
         time_next_inspection = time_last_inspection
         time_next_inspection += np.random.normal(mu, sigma)
 
@@ -97,7 +97,7 @@ class Manager:
         # access to event times
         self.t_last_event = 0
         self.t_last_inspection = {system.id:0 for system in self.systems}
-        self.t_next_inspection = {system.id:self.inspector.schedule_next(
+        self.t_next_inspection = {system.id:self.inspector.schedule_inspection(
             self.t_last_event, self.param["mu"], self.param["sigma"]) for system in self.systems}
         self.t_plan_replacement = {system.id:np.inf for system in self.systems}
         self.t_last_event_system = {system.id:0 for system in self.systems}
@@ -186,6 +186,10 @@ class Manager:
             # unschedule replacement
             self.t_plan_replacement[system.id] = np.inf
 
+            # schedule inspection starting after new
+            self.t_next_inspection[system.id] = self.inspector.schedule_inspection(
+                self.t_last_event, self.param["mu"], self.param["sigma"])
+
         elif t_to_evnt == t_to_fail:
             event_type = "failure"
             event_cost = self.costs["failure"]
@@ -212,7 +216,7 @@ class Manager:
 
             # schedule next inspection
             self.t_last_inspection[system.id] = self.t_last_event
-            self.t_next_inspection[system.id] = self.inspector.schedule_next(
+            self.t_next_inspection[system.id] = self.inspector.schedule_inspection(
                 self.t_last_event, self.param["mu"], self.param["sigma"])
 
         else:
