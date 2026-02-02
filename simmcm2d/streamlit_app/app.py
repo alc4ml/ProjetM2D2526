@@ -2,6 +2,7 @@ import streamlit as st
 from core.session import init_session
 from views.configuration import page_configuration
 from views.simulation import page_simulation
+from views.graphes import page_graphes
 
 st.set_page_config(page_title="Maintenance prédictive", layout="wide")
 init_session()
@@ -29,6 +30,6 @@ if page == "Configuration":
 elif page == "Simulation":
     page_simulation()
 elif page == "Graphes":
-    st.info("Graphes à venir")
+    page_graphes()
 else:
     st.info("KPI à venir")
