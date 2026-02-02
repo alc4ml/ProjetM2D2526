@@ -8,8 +8,6 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
-from simmcm2d import sample_datasets
-
 
 def _get_config() -> dict:
     return st.session_state.get("config", {})
@@ -20,24 +18,6 @@ def _safe_float(x, default=0.0) -> float:
         return float(x)
     except Exception:
         return float(default)
-
-
-@st.cache_data(show_spinner=False)
-def _simulate_df(config_json: str) -> pd.DataFrame:
-    conf = json.loads(config_json)
-    param = conf.get("param", {})
-    costs = conf.get("costs", {})
-
-    df = sample_datasets(
-        param,
-        costs,
-        n_systems=int(conf.get("n_systems", 10)),
-        n_events=int(conf.get("n_events", 10000)),
-        time_origin=float(conf.get("time_origin", 0)),
-        id_0_component=int(conf.get("id_0_component", 0)),
-        id_0_system=int(conf.get("id_0_system", 0)),
-    )
-    return df
 
 
 def _hist(x, bins: int, xlabel: str, title: str):
@@ -64,8 +44,13 @@ def page_graphes():
     theta = _safe_float(param.get("theta", 12))
     inspection_deviation = _safe_float(param.get("inspection_deviation", 0.05))
 
-    tab_theo, tab_data = st.tabs(["📐 Distributions (théorie)", "🧾 Graphes sur dataset"])
+    tab_theo, tab_data = st.tabs(
+        ["📐 Distributions (théorie)", "🧾 Graphes sur données simulées"]
+    )
 
+    # ============================
+    # 📐 THÉORIE (INCHANGÉE)
+    # ============================
     with tab_theo:
         st.subheader("Distributions des variables (comme le notebook)")
 
@@ -76,11 +61,21 @@ def page_graphes():
 
         with col1:
             fail_ages = eta * np.random.weibull(beta, size=n)
-            _hist(fail_ages, bins=bins, xlabel="failing time (hours)", title="Distribution of Component 'Fail Ages'")
+            _hist(
+                fail_ages,
+                bins=bins,
+                xlabel="failing time (hours)",
+                title="Distribution of Component 'Fail Ages'",
+            )
 
         with col2:
             inspection_windows = np.random.normal(loc=mu, scale=sigma, size=n)
-            _hist(inspection_windows, bins=bins, xlabel="inspection interval (hours)", title="Distribution of Time Intervals Between Inspection")
+            _hist(
+                inspection_windows,
+                bins=bins,
+                xlabel="inspection interval (hours)",
+                title="Distribution of Time Intervals Between Inspection",
+            )
 
         col3, col4 = st.columns(2)
 
@@ -95,16 +90,21 @@ def page_graphes():
 
         with col4:
             repl_delay = np.random.exponential(theta, size=n)
-            _hist(repl_delay, bins=bins, xlabel="replacement time interval (hours)", title="Distribution of Replacement Delay After Required")
+            _hist(
+                repl_delay,
+                bins=bins,
+                xlabel="replacement time interval (hours)",
+                title="Distribution of Replacement Delay After Required",
+            )
 
-        st.subheader("Inspection Wear Measurement Distributions (Beta)")
+        # st.subheader("Inspection Wear Measurement Distributions (Beta)")
 
         dev = max(0.0, min(inspection_deviation, 0.49))
         n_panels = 11
         cdfs = np.linspace(0.01, 0.99, n_panels)
         sample = np.linspace(0, 1, 200)
 
-        fig, ax = plt.subplots(1, n_panels, sharey=True, figsize=(16, 3))
+        fig, ax = plt.subplots(1, n_panels, sharey=True, figsize=(16, 8))
         for i in range(n_panels):
             age_cdf = float(cdfs[i])
             var = dev * age_cdf * (1 - age_cdf)
@@ -125,19 +125,16 @@ def page_graphes():
         fig.supxlabel("Cumulated Density Representing Component Wear")
         st.pyplot(fig, clear_figure=True)
 
+    # ============================
+    # 🧾 DONNÉES SIMULÉES
+    # ============================
     with tab_data:
-        st.subheader("Dataset simulé + graphes (comme le notebook)")
+        st.subheader("Graphes basés sur la simulation courante")
 
-        if st.button("▶️ Lancer la simulation", use_container_width=True):
-            cfg_json = json.dumps(cfg, sort_keys=True)
-            with st.spinner("Simulation en cours..."):
-                df = _simulate_df(cfg_json)
-            st.session_state["df_last"] = df
-            st.success(f"OK — dataset simulé : {len(df)} lignes")
+        df = st.session_state.get("df", None)
 
-        df = st.session_state.get("df_last", None)
         if df is None:
-            st.info("Clique sur **Lancer la simulation** pour générer un dataset.")
+            st.info("Aucune simulation disponible. Lance d’abord une simulation.")
             return
 
         st.caption(f"{len(df)} lignes × {len(df.columns)} colonnes")
@@ -146,8 +143,14 @@ def page_graphes():
         if {"event_type", "component_age"}.issubset(df.columns):
             st.subheader("Distribution of Component Ages in Failure")
             failures = df[df["event_type"] == "failure"]["component_age"].dropna()
+
             if len(failures) > 0:
-                _hist(failures.values, bins=bins, xlabel="system age until failure (hours)", title="Distribution of Component Ages in Failure")
+                _hist(
+                    failures.values,
+                    bins=bins,
+                    xlabel="system age until failure (hours)",
+                    title="Distribution of Component Ages in Failure",
+                )
             else:
                 st.info("Aucune ligne avec event_type == 'failure'.")
         else:
@@ -156,13 +159,22 @@ def page_graphes():
         needed = {"event_type", "event_date", "system_id"}
         if needed.issubset(df.columns):
             st.subheader("Sample of Inspection Times (events timeline)")
-            n_show = st.slider("Nombre d'événements affichés", 50, 2000, 200, step=50)
+
+            n_show = st.slider(
+                "Nombre d'événements affichés", 50, 2000, 200, step=50
+            )
             df_ = df.head(n_show)
 
             fig, ax = plt.subplots()
             for e_type in df_["event_type"].dropna().unique():
                 sub = df_[df_["event_type"] == e_type]
-                ax.scatter(sub["event_date"], sub["system_id"], label=str(e_type), alpha=0.5, s=18)
+                ax.scatter(
+                    sub["event_date"],
+                    sub["system_id"],
+                    label=str(e_type),
+                    alpha=0.5,
+                    s=18,
+                )
 
             ax.legend()
             ax.set_xlabel("event_date (hours)")
@@ -171,4 +183,6 @@ def page_graphes():
             plt.xticks(rotation=45)
             st.pyplot(fig, clear_figure=True)
         else:
-            st.info("Colonnes attendues non trouvées : event_type, event_date, system_id")
+            st.info(
+                "Colonnes attendues non trouvées : event_type, event_date, system_id"
+            )

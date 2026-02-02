@@ -3,6 +3,8 @@ from core.session import init_session
 from views.configuration import page_configuration
 from views.simulation import page_simulation
 from views.graphes import page_graphes
+# from views.kpi import page_kpi
+
 
 
 st.set_page_config(page_title="Maintenance prédictive", layout="wide")
@@ -31,6 +33,9 @@ if page == "Configuration":
 elif page == "Simulation":
     page_simulation()
 elif page == "Graphes":
-    st.info("Graphes à venir")
+    page_graphes()
+elif page == "KPI":
+    # page_kpi()
+    st.info("a venir")
 else:
-    st.info("KPI à venir")
+    st.info("Page inconnue")
