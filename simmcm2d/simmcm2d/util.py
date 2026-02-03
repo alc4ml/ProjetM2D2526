@@ -67,8 +67,8 @@ def get_kpi(system_df, costs):
     # Ratio (it's the same ratio for month, trimestre and year)
     monthly_ratio = monthly_replacement.describe()["mean"] / monthly_failures.describe()["mean"]
 
-    detections = len(df[df['FF'] == 'True'])
-    fausses_alertes = len(df[df['FF'] == 'False'])
+    detections = len(df[df['FF'] == True])
+    fausses_alertes = len(df[df['FF'] == False])
     precision = detections / (detections + fausses_alertes) if (detections + fausses_alertes) > 0 else 0
     rappel = detections / (detections + nb_pannes) if (detections + nb_pannes) > 0 else 0
 
