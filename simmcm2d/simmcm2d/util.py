@@ -16,6 +16,7 @@ def system_factory(id_0, component_factory):
         component = next(component_factory)
         yield System(id_system, component)
 
+
 def get_kpi(system_df, costs):
     df = system_df.copy()
     df['event_date'] = pd.to_datetime(df['event_date'])
@@ -102,8 +103,10 @@ def get_kpi(system_df, costs):
     return KPI
 
 
-def sample_datasets(param, costs, n_systems = 1, n_events = 1000,
-                    time_origin=0, id_0_component=0, id_0_system=0,
+def sample_datasets(param, costs, n_systems = 1,
+                    date_first="2010-01-01 12:00",
+                    date_final="2025-12-31 12:00",
+                    id_0_component=0, id_0_system=0,
                     output_data_filepath=None, output_table_filepath=None):
 
     c_factory = component_factory(
@@ -123,16 +126,26 @@ def sample_datasets(param, costs, n_systems = 1, n_events = 1000,
     manager = Manager(n_systems, s_factory, c_factory, inspector, param, costs)
 
     # start iterations
-    for _ in range(n_events):
+    date_first = pd.to_datetime(date_first)
+    date_final = pd.to_datetime(date_final)
+    max_time_timedelta = date_final-date_first
+    while True:
+        # compute next event
         event_data = manager.next_event()
+        # check if time has been reached and break
+        last_event_seconds = manager.t_last_event*60*60
+        if last_event_seconds > max_time_timedelta.total_seconds():
+            break
+
+        # otherwise, continue
         system_data.append(event_data)
 
     # create dataframe
     system_df = pd.DataFrame(system_data)
     
     # format dates and times
-    system_df.event_date = pd.to_datetime(
-        (system_df.event_date*60*60).astype(int), unit='s', origin=time_origin)
+    time_seconds = (system_df.event_date*60*60).astype(int)
+    system_df.event_date = pd.to_datetime(time_seconds, origin=date_first, unit='s')
     system_df.event_time = system_df.event_date.dt.time
     system_df.event_date = system_df.event_date.dt.date
     system_df.system_age = system_df.system_age.round(2)
@@ -154,8 +167,8 @@ def sample_datasets(param, costs, n_systems = 1, n_events = 1000,
         new_row.update(costs)
         new_row.update({
             "n_systems": 10,
-            "n_events": 10000,
-            "time_origin": 0,
+            "date_first": date_first,
+            "date_final": date_final,
             "id_0_component": 0,
             "id_0_system": 0,
             "output_data_filepath":output_data_filepath
