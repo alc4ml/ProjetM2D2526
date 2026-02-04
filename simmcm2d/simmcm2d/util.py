@@ -1,4 +1,3 @@
-import json
 import pandas as pd
 from .classes import *
 
@@ -180,13 +179,3 @@ def sample_datasets(param, costs, n_systems = 1,
         table_df.to_csv(output_table_filepath, index=False)
 
     return system_df
-
-
-def sample_datasets_conf(configuration_filepth):
-    
-    # read configuration from file
-    with open(configuration_filepth, "r") as file:
-        conf = json.load(file)
-    
-    # decode and return from configuration
-    return sample_datasets(**conf)
