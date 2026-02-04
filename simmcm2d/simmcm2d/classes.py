@@ -84,23 +84,31 @@ class Manager:
         self.param = param
         self.costs = costs
 
-        # initialize systems
-        self.systems = [next(system_factory) for _ in range(n_systems)]
-
         # inspector and factory
         self.inspector = inspector
+        self.system_factory = system_factory
         self.component_factory = component_factory
-
+        
+        # initialize systems
+        self.systems = []
+        
         # components to be reused
         self.components_reuse = []
 
+        # population parameters
+        self.n_systems = n_systems
+
         # access to event times
         self.t_last_event = 0
-        self.t_last_inspection = {system.id:0 for system in self.systems}
-        self.t_next_inspection = {system.id:self.inspector.schedule_inspection(
-            self.t_last_event, self.param["mu"], self.param["sigma"]) for system in self.systems}
-        self.t_plan_replacement = {system.id:np.inf for system in self.systems}
-        self.t_last_event_system = {system.id:0 for system in self.systems}
+        self.t_last_inspection = dict()
+        self.t_next_inspection = dict()
+        self.t_plan_replacement = dict()
+        self.t_last_event_system = dict()
+        
+        self.schedule_population()
+
+        # add single first system
+        self.system_birth()
 
 
     def next_times(self, system):
@@ -108,18 +116,72 @@ class Manager:
         t_to_fail = system.component.age_fail-system.component.age
         t_to_insp = self.t_next_inspection[system.id]-self.t_last_event
         t_to_repl = self.t_plan_replacement[system.id]-self.t_last_event
+        t_to_grow = self.t_next_population-self.t_last_event
         
         # closest event to happen
-        t_to_evnt = min(t_to_fail, t_to_insp, t_to_repl)
+        t_to_evnt = min(t_to_fail, t_to_insp, t_to_repl, t_to_grow)
 
         # return diferent times
-        return t_to_evnt, t_to_fail, t_to_insp, t_to_repl
+        return t_to_evnt, t_to_fail, t_to_insp, t_to_repl, t_to_grow
+
+
+    def system_birth(self):
+        new_system = next(self.system_factory)
+
+        # add system to set of systems
+        self.systems.append(new_system)
+        
+        # create schedules for new system
+        self.t_last_inspection[new_system.id] = self.t_last_event
+        self.schedule_inspection(new_system)
+        self.t_plan_replacement[new_system.id] = np.inf
+        self.t_last_event_system[new_system.id] = self.t_last_event
+
+
+    def system_death(self):
+        # system choice weighted by age
+        weights = np.array([system.age for system in self.systems])
+        old_system = np.random.choice(self.systems, p=weights/sum(weights))
+
+        # remove from set of systems
+        self.systems.remove(old_system)
+
+        # remove from schedules
+        self.t_last_inspection.pop(old_system.id)
+        self.t_next_inspection.pop(old_system.id)
+        self.t_plan_replacement.pop(old_system.id)
+        self.t_last_event_system.pop(old_system.id)
     
 
+    def birth_death_rates(self):
+        n = len(self.systems)
+        K = self.n_systems
+        birth_rate = self.param["r"] * n * (1-n/K)
+        death_rate = self.param["nu"]
+
+        return birth_rate, death_rate
+    
+
+    def schedule_population(self):
+        # current birth and death rates
+        birth_rate, death_rate = self.birth_death_rates()
+        total_rate = birth_rate + death_rate
+        
+        # time until next population event
+        t_to_grow = np.random.exponential(1 / total_rate)
+        self.t_next_population = self.t_last_event + t_to_grow
+
+
     def schedule_replacement(self, system, urgent=False):
-        t_replacement_ = self.inspector.schedule_replacement(
-                self.t_last_event, self.param["theta"], urgent=urgent)
-        self.t_plan_replacement[system.id] = t_replacement_
+        t_replacement = self.inspector.schedule_replacement(
+            self.t_last_event, self.param["theta"], urgent=urgent)
+        self.t_plan_replacement[system.id] = t_replacement
+
+
+    def schedule_inspection(self, system):
+        t_inspection = self.inspector.schedule_inspection(
+            self.t_last_event, self.param["mu"], self.param["sigma"])
+        self.t_next_inspection[system.id] = t_inspection
 
 
     def replace_component(self, system):
@@ -152,7 +214,7 @@ class Manager:
     def next_event_(self, system):
         # compute next relevant event times
         t_to_events = self.next_times(system=system)
-        t_to_evnt, t_to_fail, t_to_insp, t_to_repl = t_to_events
+        t_to_evnt, t_to_fail, t_to_insp, t_to_repl, t_to_grow = t_to_events
 
         # update all system and component ages
         self.t_last_event += t_to_evnt
@@ -189,8 +251,7 @@ class Manager:
             self.t_plan_replacement[system.id] = np.inf
 
             # schedule inspection starting after new
-            self.t_next_inspection[system.id] = self.inspector.schedule_inspection(
-                self.t_last_event, self.param["mu"], self.param["sigma"])
+            self.schedule_inspection(system)
 
         elif t_to_evnt == t_to_fail:
             event_type = "failure"
@@ -218,8 +279,27 @@ class Manager:
 
             # schedule next inspection
             self.t_last_inspection[system.id] = self.t_last_event
-            self.t_next_inspection[system.id] = self.inspector.schedule_inspection(
-                self.t_last_event, self.param["mu"], self.param["sigma"])
+            self.schedule_inspection(system)
+        elif t_to_evnt == t_to_grow:
+            # compte rates
+            birth_rate, death_rate = self.birth_death_rates()
+            total_rate = birth_rate + death_rate
+
+            # sample birth or death
+            if np.random.rand() < (birth_rate / total_rate):
+                # birth
+                self.system_birth()
+            else:
+                # avoid in case a single system exists
+                if len(self.systems) > 1:
+                    # death
+                    self.system_death()
+
+            # schedule next population event
+            self.schedule_population()
+
+            # nothing toe return
+            return None
 
         else:
             raise Exception("An Unknown Event Type Occurred")
@@ -252,4 +332,10 @@ class Manager:
 
         # run closest event and return results
         next_event_system = ordered_by_time[0]
-        return self.next_event_(next_event_system)
+        next_event_data = self.next_event_(next_event_system)
+
+        # recals if event was populational
+        if next_event_data is None:
+            return self.next_event()
+
+        return next_event_data
