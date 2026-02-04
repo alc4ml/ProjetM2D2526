@@ -102,6 +102,32 @@ def get_kpi(system_df, costs):
     return KPI
 
 
+def sample_to_table(system_df, output_table_filepath, param, costs,
+                    n_systems, date_first, date_final,
+                    id_0_component, id_0_system,
+                    output_data_filepath=None):
+    try:
+        table_df = pd.read_csv(output_table_filepath)
+    except:
+        table_df = pd.DataFrame()
+    new_row = dict()
+    new_row.update(param)
+    new_row.update(costs)
+    new_row.update({
+        "n_systems": n_systems,
+        "date_first": date_first,
+        "date_final": date_final,
+        "id_0_component": id_0_component,
+        "id_0_system": id_0_system,
+        "output_data_filepath":output_data_filepath
+    })
+    KPI = get_kpi(system_df, costs)
+    new_row.update(KPI)
+    new_row = pd.DataFrame([new_row])
+    table_df =  pd.concat([table_df, new_row])
+    table_df.to_csv(output_table_filepath, index=False)
+
+
 def sample_datasets(param, costs, n_systems = 1,
                     date_first="2010-01-01 12:00",
                     date_final="2025-12-31 12:00",
@@ -125,9 +151,9 @@ def sample_datasets(param, costs, n_systems = 1,
     manager = Manager(n_systems, s_factory, c_factory, inspector, param, costs)
 
     # start iterations
-    date_first = pd.to_datetime(date_first)
-    date_final = pd.to_datetime(date_final)
-    max_time_timedelta = date_final-date_first
+    date_first_ = pd.to_datetime(date_first)
+    date_final_ = pd.to_datetime(date_final)
+    max_time_timedelta = date_final_-date_first_
     while True:
         # compute next event
         event_data = manager.next_event()
@@ -144,7 +170,7 @@ def sample_datasets(param, costs, n_systems = 1,
     
     # format dates and times
     time_seconds = (system_df.event_date*60*60).astype(int)
-    system_df.event_date = pd.to_datetime(time_seconds, origin=date_first, unit='s')
+    system_df.event_date = pd.to_datetime(time_seconds, origin=date_first_, unit='s')
     system_df.event_time = system_df.event_date.dt.time
     system_df.event_date = system_df.event_date.dt.date
     system_df.system_age = system_df.system_age.round(2)
@@ -157,25 +183,9 @@ def sample_datasets(param, costs, n_systems = 1,
 
     # add report to table if path given
     if output_table_filepath is not None:
-        try:
-            table_df = pd.read_csv(output_table_filepath)
-        except:
-            table_df = pd.DataFrame()
-        new_row = dict()
-        new_row.update(param)
-        new_row.update(costs)
-        new_row.update({
-            "n_systems": 10,
-            "date_first": date_first,
-            "date_final": date_final,
-            "id_0_component": 0,
-            "id_0_system": 0,
-            "output_data_filepath":output_data_filepath
-        })
-        KPI = get_kpi(system_df, costs)
-        new_row.update(KPI)
-        new_row = pd.DataFrame([new_row])
-        table_df =  pd.concat([table_df, new_row])
-        table_df.to_csv(output_table_filepath, index=False)
+        sample_to_table(system_df, output_table_filepath, param, costs,
+                        n_systems, date_first, date_final,
+                        id_0_component, id_0_system,
+                        output_data_filepath)
 
     return system_df
