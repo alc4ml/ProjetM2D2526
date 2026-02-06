@@ -1,90 +1,92 @@
-import json
 import streamlit as st
-from simmcm2d import sample_datasets_conf
-from pathlib import Path
 import pandas as pd
+from pathlib import Path
 from datetime import datetime
 
-PARAM_TABLE_PATH = Path("examples") / "sample_system_datatable.csv"
+from simmcm2d import sample_datasets
+
+
 OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
 
 def page_simulation():
     st.header("⚙️ Simulation")
 
-    if st.button("▶️ Lancer la simulation"):
-        cfg = st.session_state.config
+    cfg = st.session_state.config
 
-        OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
+    if st.button("▶️ Lancer la simulation", use_container_width=True):
+        with st.spinner("Simulation en cours…"):
+            # =========================
+            # Génération des noms uniques
+            # =========================
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        # --- identifiant unique du run ---
-        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        data_filename = f"simulation_data_{run_id}.csv"
+            dataset_path = OUTPUT_DIR / f"sample_system_dataset_{timestamp}.csv"
+            table_path = OUTPUT_DIR / f"sample_system_table_{timestamp}.csv"
 
-        cfg["output_data_filepath"] = str(OUTPUT_DIR / data_filename)
-        cfg["output_table_filepath"] = str(PARAM_TABLE_PATH)
+            # =========================
+            # Récupération paramètres
+            # =========================
+            param = cfg["param"]
+            costs = cfg["costs"]
 
-        # --- sauvegarde config ---
-        run_config_path = OUTPUT_DIR / "run_config.json"
-        with open(run_config_path, "w") as f:
-            json.dump(cfg, f, indent=2)
+            n_systems = cfg["n_systems"]
+            date_first = cfg["time"]["date_start"]
+            date_final = cfg["time"]["date_end"]
 
-        # --- simulation (le moteur écrit déjà le CSV KPI) ---
-        df = sample_datasets_conf(run_config_path)
-        st.session_state.df = df
+            id_0_component = cfg.get("id_0_component", 0)
+            id_0_system = cfg.get("id_0_system", 0)
 
-        # ==================================================
-        # 🔧 POST-TRAITEMENT DU CSV KPI (sans toucher au moteur)
-        # ==================================================
-        try:
-            table_df = pd.read_csv(PARAM_TABLE_PATH)
+            # =========================
+            # Lancement simulation
+            # =========================
+            df = sample_datasets(
+                param=param,
+                costs=costs,
+                n_systems=n_systems,
+                date_first=date_first,
+                date_final=date_final,
+                id_0_component=id_0_component,
+                id_0_system=id_0_system,
+                output_data_filepath=dataset_path,
+                output_table_filepath=table_path,
+            )
 
-            # On corrige UNIQUEMENT la dernière ligne (run courant)
-            last_idx = table_df.index[-1]
+            st.session_state.last_dataset = df
+            st.session_state.last_dataset_path = dataset_path
+            st.session_state.last_table_path = table_path
 
-            # paramètres du modèle
-            for k, v in cfg.get("param", {}).items():
-                table_df.loc[last_idx, k] = v
+        st.success("Simulation terminée avec succès 🎉")
 
-            # coûts
-            for k, v in cfg.get("costs", {}).items():
-                table_df.loc[last_idx, k] = v
+    # =========================
+    # Résultats
+    # =========================
+    if "last_dataset" in st.session_state:
+        st.subheader("📄 Aperçu du dataset généré")
+        st.dataframe(st.session_state.last_dataset.head(50))
 
-            # paramètres globaux
-            for k in [
-                "n_systems",
-                "n_events",
-                "time_origin",
-                "id_0_system",
-                "id_0_component",
-            ]:
-                table_df.loc[last_idx, k] = cfg.get(k)
+        st.download_button(
+            "⬇️ Télécharger le dataset",
+            data=st.session_state.last_dataset_path.read_bytes(),
+            file_name=st.session_state.last_dataset_path.name,
+            mime="text/csv",
+            use_container_width=True,
+        )
 
-            # traçabilité du run (optionnel mais très propre)
-            table_df.loc[last_idx, "run_id"] = run_id
+        st.divider()
+        st.subheader("📊 Paramètres & KPI de la simulation")
 
-            # réécriture du CSV
-            table_df.to_csv(PARAM_TABLE_PATH, index=False)
+        table_df = pd.read_csv(st.session_state.last_table_path)
+        st.dataframe(table_df)
 
-        except Exception as e:
-            st.warning(f"Post-traitement du CSV KPI impossible : {e}")
+        st.download_button(
+            "⬇️ Télécharger le fichier paramètres + KPI",
+            data=st.session_state.last_table_path.read_bytes(),
+            file_name=st.session_state.last_table_path.name,
+            mime="text/csv",
+            use_container_width=True,
+        )
 
-        st.success("Simulation terminée (KPI enregistrés et corrigés)")
-        st.dataframe(df.head(50))
-
-    # ==============================
-    # Affichage & gestion historique
-    # ==============================
-    st.divider()
-    st.subheader("📊 Historique des simulations")
-
-    if PARAM_TABLE_PATH.exists():
-        hist_df = pd.read_csv(PARAM_TABLE_PATH)
-        st.dataframe(hist_df)
-
-        if st.button("🧹 Réinitialiser l’historique"):
-            PARAM_TABLE_PATH.unlink()
-            st.success("Historique supprimé")
-            st.rerun()
     else:
-        st.info("Aucune simulation enregistrée pour l’instant.")
+        st.info("Aucune simulation lancée pour l’instant.")

@@ -6,36 +6,77 @@ from views.graphes import page_graphes
 # from views.kpi import page_kpi
 
 
+# ======================================================
+# CONFIG GLOBALE
+# ======================================================
+st.set_page_config(
+    page_title="Simulateur de Maintenance Prédictive",
+    layout="wide",
+)
 
-st.set_page_config(page_title="Maintenance prédictive", layout="wide")
 init_session()
 
-#sidebar
-st.sidebar.markdown("")
 
-if "page" not in st.session_state:
-    st.session_state.page = "Configuration"
+# ======================================================
+# SIDEBAR — NAVIGATION
+# ======================================================
+with st.sidebar:
+    st.markdown(
+        """
+        <div style="padding: 0.5rem 0;">
+            <h2 style="margin-bottom: 0.2rem;">Maintenance Prédictive</h2>
+            <p style="opacity: 0.7; margin-top: 0;">
+                Simulateur (Test de fiabilité)
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-def nav_button(label, page_name):
-    if st.sidebar.button(label, use_container_width=True):
-        st.session_state.page = page_name
+    st.divider()
 
-nav_button("🛠️ Configuration", "Configuration")
-nav_button("⚙️ Simulation", "Simulation")
-nav_button("📊 Graphes Notebook", "Graphes")
-nav_button("📈 KPI", "KPI")
+    if "page" not in st.session_state:
+        st.session_state.page = "Configuration"
 
-#Routing
+    def nav_button(label, page_name):
+        is_active = st.session_state.page == page_name
+        if st.button(
+            label,
+            use_container_width=True,
+            type="primary" if is_active else "secondary",
+        ):
+            st.session_state.page = page_name
+
+    nav_button("Configuration", "Configuration")
+    nav_button("Simulation", "Simulation")
+    nav_button("Graphes", "Graphes")
+    nav_button("KPI", "KPI")
+
+    # st.divider()
+
+    # st.caption(
+    #     "Projet académique —\n"
+    #     "Maintenance prédictive & simulation stochastique"
+    # )
+
+
+# ======================================================
+# ROUTING
+# ======================================================
 page = st.session_state.page
 
 if page == "Configuration":
     page_configuration()
+
 elif page == "Simulation":
     page_simulation()
+
 elif page == "Graphes":
     page_graphes()
+
 elif page == "KPI":
     # page_kpi()
-    st.info("a venir")
+    st.info("Page KPI à venir.")
+
 else:
-    st.info("Page inconnue")
+    st.error("Page inconnue.")
