@@ -46,11 +46,13 @@ class Inspector:
         age_cdf = self.component_cdf(component)
 
         # adds imprecision by sampling from a Beta
-        var = self.deviation*age_cdf*(1-age_cdf)
-        var = np.maximum(var, np.finfo(float).eps) # avoid division by zero
+        eps = np.finfo(float).eps
 
-        a = age_cdf*(age_cdf*(1-age_cdf)/var-1)
-        b = (1-age_cdf)*(age_cdf*(1-age_cdf)/var-1)
+        var = max(self.deviation*age_cdf*(1-age_cdf), eps) # avoid division by zero
+        a = max(age_cdf*(age_cdf*(1-age_cdf)/var-1), eps) 
+        b = min((1-age_cdf)*(age_cdf*(1-age_cdf)/var-1), 1-eps)
+        
+        # sample from beta
         age_beta = np.random.beta(a,b)
 
         # conditional report
