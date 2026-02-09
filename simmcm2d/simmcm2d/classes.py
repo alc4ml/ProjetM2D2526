@@ -158,7 +158,7 @@ class Manager:
     
 
     def birth_death_rates(self):
-        n = len(self.systems)
+        n = max(1, len(self.systems))
         K = self.n_systems
         birth_rate = self.param["r"] * n * (1-n/K)
         death_rate = n * self.param["nu"]
