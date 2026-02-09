@@ -159,7 +159,7 @@ class Manager:
         n = len(self.systems)
         K = self.n_systems
         birth_rate = self.param["r"] * n * (1-n/K)
-        death_rate = self.param["nu"]
+        death_rate = n * self.param["nu"]
 
         return birth_rate, death_rate
     
