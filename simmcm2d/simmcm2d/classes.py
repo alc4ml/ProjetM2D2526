@@ -50,7 +50,7 @@ class Inspector:
 
         var = max(self.deviation*age_cdf*(1-age_cdf), eps) # avoid division by zero
         a = max(age_cdf*(age_cdf*(1-age_cdf)/var-1), eps) 
-        b = min((1-age_cdf)*(age_cdf*(1-age_cdf)/var-1), 1-eps)
+        b = max((1-age_cdf)*(age_cdf*(1-age_cdf)/var-1), eps)
         
         # sample from beta
         age_beta = np.random.beta(a,b)
