@@ -73,8 +73,46 @@ def get_kpi(system_df, costs):
     rappel = detections / (detections + nb_pannes) if (detections + nb_pannes) > 0 else 0
 
     # Costs
+    
     df['cost_event'] = df['event_type'].map(costs)
     cost_per_system = df.groupby('system_id')['cost_cumulated'].last().reset_index()
+    
+    # Total cost of the fleet per month
+    df['month'] = df['event_date'].dt.to_period('M')
+    monthly_fleet_cost = df.groupby('month')['cost_event'].sum().reset_index()  # Calculer le coût total de la flotte par mois (On fait la somme de tous les 'cost_event' pour chaque mois)
+    systems_per_month = df.groupby('month')['system_id'].nunique().reset_index() # Nb de systèmes étaient actifs par mois 
+    fleet_kpi = pd.merge(monthly_fleet_cost, systems_per_month, on='month')  # Fusionner et calculer le coût moyen par système pour chaque mois
+    fleet_kpi.columns = ['Mois', 'Cout_Total_Flotte', 'Nombre_Systemes']
+    moyenne_mensuelle_flotte = fleet_kpi['Cout_Total_Flotte'].mean() # Calculer la moyenne globale de la flotte sur un mois
+    
+    # Mean cost for 1 system per month
+    fleet_kpi['Cout_Moyen_Par_Systeme'] = fleet_kpi['Cout_Total_Flotte'] / fleet_kpi['Nombre_Systemes']
+    cost_for_one_syst = fleet_kpi['Cout_Moyen_Par_Systeme'].mean()
+
+     # Total cost of the fleet per trimestre
+    df['trimestre'] = df['event_date'].dt.to_period('Q')
+    trimestre_fleet_cost = df.groupby('trimestre')['cost_event'].sum().reset_index()  # Calculer le coût total de la flotte par trimestre (On fait la somme de tous les 'cost_event' pour chaque trimestre)
+    systems_per_trimestre = df.groupby('trimestre')['system_id'].nunique().reset_index() # Nb de systèmes étaient actifs par trimestre
+    fleet_kpi = pd.merge(trimestre_fleet_cost, systems_per_trimestre, on='trimestre')  # Fusionner et calculer le coût moyen par système pour chaque trimestre
+    fleet_kpi.columns = ['Trimestre', 'Cout_Total_Flotte_Trimestre', 'Nombre_Systemes_Trimestre']
+    moyenne_trimestrielle_flotte = fleet_kpi['Cout_Total_Flotte_Trimestre'].mean() # Calculer la moyenne globale de la flotte sur un trimestre
+        
+    # Mean cost for 1 system per trimestre
+    fleet_kpi['Cout_Moyen_Par_Systeme_Trimestre'] = fleet_kpi['Cout_Total_Flotte_Trimestre'] / fleet_kpi['Nombre_Systemes_Trimestre']
+    cost_for_one_syst_trimestre = fleet_kpi['Cout_Moyen_Par_Systeme_Trimestre'].mean()
+
+
+    # Total cost of the fleet per year
+    df['year'] = df['event_date'].dt.to_period('Y')
+    year_fleet_cost = df.groupby('year')['cost_event'].sum().reset_index()  # Calculer le coût total de la flotte par trimestre (On fait la somme de tous les 'cost_event' pour chaque year)
+    systems_per_year = df.groupby('year')['system_id'].nunique().reset_index() # Nb de systèmes étaient actifs par an
+    fleet_kpi = pd.merge(year_fleet_cost, systems_per_year, on='year')  # Fusionner et calculer le coût moyen par système pour chaque année
+    fleet_kpi.columns = ['Year', 'Cout_Total_Flotte_Year', 'Nombre_Systemes_Year']
+    moyenne_annuelle_flotte = fleet_kpi['Cout_Total_Flotte_Year'].mean() # Calculer la moyenne globale de la flotte sur une année
+        
+    # Mean cost for 1 system per year
+    fleet_kpi['Cout_Moyen_Par_Systeme_Year'] = fleet_kpi['Cout_Total_Flotte_Year'] / fleet_kpi['Nombre_Systemes_Year']
+    cost_for_one_syst_year = fleet_kpi['Cout_Moyen_Par_Systeme_Year'].mean()
 
     KPI = {
         "Average of failure per month": monthly_failures.describe()["mean"],
@@ -96,8 +134,15 @@ def get_kpi(system_df, costs):
         "Précision du détecteur": round(precision, 2),
         "Taux de détection (Rappel)": round(rappel, 2),
         
-        "Average cost of one system": cost_per_system['cost_cumulated'].describe()["mean"],
-        "Standard Deviation": cost_per_system['cost_cumulated'].describe()["std"]
+        "Total average cost of one system": cost_per_system['cost_cumulated'].describe()["mean"],
+        "Standard Deviation": cost_per_system['cost_cumulated'].describe()["std"],
+        
+        "Total cost of the fleet per month": moyenne_mensuelle_flotte,
+        "Average cost for 1 system per month": cost_for_one_syst,
+        "Total cost of the fleet per trimestre": moyenne_trimestrielle_flotte,
+        "Average cost for 1 system per trimestre": cost_for_one_syst_trimestre,
+        "Total cost of the fleet per year": moyenne_annuelle_flotte,
+        "Average cost for 1 system per year": cost_for_one_syst_year
     }
     return KPI
 
