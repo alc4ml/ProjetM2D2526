@@ -47,7 +47,7 @@ class Inspector:
 
         # adds imprecision by sampling from a Beta
         var = self.deviation*age_cdf*(1-age_cdf)
-        np.maximum(var, np.finfo(float).eps) # avoid division by zero
+        var = np.maximum(var, np.finfo(float).eps) # avoid division by zero
 
         a = age_cdf*(age_cdf*(1-age_cdf)/var-1)
         b = (1-age_cdf)*(age_cdf*(1-age_cdf)/var-1)
