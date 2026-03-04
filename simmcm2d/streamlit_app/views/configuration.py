@@ -82,13 +82,13 @@ def page_configuration():
     with right:
         # ---- Weibull
         with st.expander("⚙️ Vie du composant — Loi de Weibull", expanded=True):
-            param["eta"] = st.number_input(m
+            param["eta"] = st.number_input(
                 "η (eta) — échelle (heures)",
-                min_value=0.0, value=float(param.get("eta", 720.0)), step=1.0
+                min_value=0.0, value=float(param.get("eta", 7200.0)), step=1.0
             )
             param["beta"] = st.number_input(
                 "β (beta)",
-                min_value=0.1, value=float(param.get("beta", 3.0)), step=0.1
+                min_value=0.1, value=float(param.get("beta", 2.0)), step=0.1
             )
             param["expiration"] = st.number_input(
                 "Âge d’expiration (heures)",
