@@ -1,212 +1,150 @@
-# import streamlit as st
-# import numpy as np
-# import pandas as pd
-# import matplotlib.pyplot as plt
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from lifelines import KaplanMeierFitter
 
 
-# # =========================================================
-# # 🎨 Thème dark compatible Streamlit (robuste)
-# # =========================================================
-# def apply_streamlit_dark_theme():
-#     bg = st.get_option("theme.backgroundColor") or "#0E1117"
-#     fg = st.get_option("theme.textColor") or "#FAFAFA"
+def page_analyse_descriptive():
 
-#     plt.rcParams.update({
-#         "figure.facecolor": bg,
-#         "axes.facecolor": bg,
-#         "axes.edgecolor": fg,
-#         "axes.labelcolor": fg,
-#         "xtick.color": fg,
-#         "ytick.color": fg,
-#         "text.color": fg,
-#         "grid.color": fg,
-#     })
+    st.header("📊 Analyse descriptive")
 
+    if "last_dataset" not in st.session_state:
+        st.warning("Veuillez d'abord lancer une simulation dans la page Simulation.")
+        return
 
-# # =========================================================
-# # 🧪 Simulation TEMPORAIRE du CSV KPI
-# # (structure IDENTIQUE au CSV final)
-# # =========================================================
-# def simulate_kpi(system_id, n_runs=4):
-#     rows = []
-#     for _ in range(n_runs):
-#         rows.append({
-#             "system_id": system_id,
+    df = st.session_state.last_dataset.copy()
 
-#             # ===== KPI DE FRÉQUENCE =====
-#             "Average of failure per month": np.random.normal(10 + system_id, 1),
-#             "Average of failure per trimestre": np.random.normal(30 + system_id, 2),
-#             "Average of failure per year": np.random.normal(120 + system_id * 5, 5),
+    st.subheader("Aperçu du dataset")
+    st.dataframe(df.head(20))
 
-#             # ===== KPI DE STABILITÉ =====
-#             "Stability per month": np.random.uniform(1.0, 2.0),
-#             "Stability per trimestre": np.random.uniform(3.0, 5.0),
-#             "Stability per year": np.random.uniform(8.0, 15.0),
+    # ================================
+    # On crée les colonnes pour les graphes
+    # ================================
+    col1, col2 = st.columns(2)
 
-#             # ===== KPI DE PERFORMANCE =====
-#             "Preventive Effectiveness Ratio (PER)": np.random.uniform(0.5, 0.9),
-#             "Précision du détecteur": np.random.uniform(0.7, 0.95),
-#             "Taux de détection (Rappel)": np.random.uniform(0.6, 0.9),
+    # Distribution des types d'événements
+    with col1:
+        fig, ax = plt.subplots()
+        sns.countplot(data=df, x="event_type", ax=ax)
+        ax.set_title("Distribution of event types")
+        st.pyplot(fig)
 
-#             # ===== KPI DE COÛT =====
-#             "Average cost of one system": np.random.normal(9000 + system_id * 500, 400),
-#             "Standard Deviation": np.random.uniform(500, 1200),
-#         })
-#     return pd.DataFrame(rows)
+    # Time between events
+    df = df.sort_values(["system_id", "event_time"])
+    df["delta_t"] = df["usage_since_last_event_h"]
 
+    with col2:
+        fig, ax = plt.subplots()
+        sns.histplot(df["delta_t"], bins=50, ax=ax)
+        ax.set_title("Time between consecutive events (hours)")
+        st.pyplot(fig)
 
-# # =========================================================
-# # 📊 GRAPHE 1 — Stabilité Monte-Carlo (boxplot)
-# # =========================================================
-# def plot_stability(df):
-#     apply_streamlit_dark_theme()
-#     fig, ax = plt.subplots()
+    # Timeline globale
+    col1, col2 = st.columns(2)
+    df["event_date"] = pd.to_datetime(df["event_date"])
+    events_over_time = df.groupby(df.event_date.dt.to_period("Q")).size()
+    with col1:
+        fig, ax = plt.subplots()
+        events_over_time.plot(kind="line", marker="o", ax=ax)
+        ax.set_title("Number of events over time")
+        ax.set_ylabel("Number of events")
+        st.pyplot(fig)
 
-#     df.boxplot(
-#         column="Average cost of one system",
-#         by="system_id",
-#         ax=ax
-#     )
+    # Component age at failure
+    failures = df[df.event_type == "failure"]
+    with col2:
+        fig, ax = plt.subplots()
+        sns.histplot(failures["component_age"], bins=40, ax=ax)
+        ax.set_title("Component age at failure")
+        ax.set_xlabel("Component age")
+        st.pyplot(fig)
 
-#     ax.set_title("Stability of Average Cost per System (4 runs)")
-#     ax.set_xlabel("System")
-#     ax.set_ylabel("Average cost of one system")
-#     plt.suptitle("")
+    # Monthly failures
+    col1, col2 = st.columns(2)
+    failures["month"] = failures["event_date"].dt.to_period("M")
+    monthly_failures = failures.groupby("month").size()
+    with col1:
+        fig, ax = plt.subplots()
+        monthly_failures.plot(kind="line", marker="o", ax=ax)
+        ax.set_title("Monthly number of failures")
+        ax.set_ylabel("Failures per month")
+        st.pyplot(fig)
 
-#     st.pyplot(fig)
+    # Kaplan-Meier
+    with col2:
+        kmf = KaplanMeierFitter()
+        events = df[df.event_type.isin(["failure", "replacement"])].copy()
+        events["event"] = events.event_type == "failure"
+        kmf.fit(durations=events["component_age"], event_observed=events["event"])
+        fig, ax = plt.subplots()
+        kmf.plot_survival_function(ax=ax)
+        ax.set_title("Empirical survival function")
+        ax.set_xlabel("Component age")
+        ax.set_ylabel("Survival probability")
+        st.pyplot(fig)
 
+    # Empirical failure hazard
+    col1, col2 = st.columns(2)
+    bins = np.linspace(0, failures.component_age.max(), 20)
+    failures["age_bin"] = pd.cut(failures["component_age"], bins)
+    hazard = failures.groupby("age_bin").size()
+    with col1:
+        fig, ax = plt.subplots()
+        hazard.plot(kind="line", marker="o", ax=ax)
+        ax.set_title("Empirical failure hazard")
+        ax.set_ylabel("Number of failures")
+        st.pyplot(fig)
 
-# # =========================================================
-# # 📊 GRAPHE 2 — Comparaison inter-systèmes (mean ± std)
-# # =========================================================
-# def plot_comparison(df):
-#     apply_streamlit_dark_theme()
+    # Inspection outcomes
+    with col2:
+        fig, ax = plt.subplots()
+        sns.countplot(data=df, x="event_report", ax=ax)
+        ax.set_title("Inspection outcomes")
+        st.pyplot(fig)
 
-#     grouped = df.groupby("system_id")["Average cost of one system"]
-#     means = grouped.mean()
-#     stds = grouped.std()
+    # Cost distribution by event type
+    col1, col2 = st.columns(2)
+    with col1:
+        fig, ax = plt.subplots()
+        sns.boxplot(data=df, x="event_type", y="cost_event", ax=ax)
+        ax.set_title("Cost distribution by event type")
+        st.pyplot(fig)
 
-#     fig, ax = plt.subplots()
-#     ax.bar(means.index, means.values, yerr=stds.values, capsize=6)
-
-#     ax.set_xlabel("System")
-#     ax.set_ylabel("Average cost of one system")
-#     ax.set_title("Comparison of systems (mean ± std)")
-
-#     st.pyplot(fig)
-
-
-# # =========================================================
-# # 📊 GRAPHE 3 — Compromis KPI vs KPI
-# # =========================================================
-# def plot_tradeoff(df):
-#     apply_streamlit_dark_theme()
-#     fig, ax = plt.subplots()
-
-#     ax.scatter(
-#         df["Preventive Effectiveness Ratio (PER)"],
-#         df["Average cost of one system"],
-#         alpha=0.8
-#     )
-
-#     ax.set_xlabel("Preventive Effectiveness Ratio (PER)")
-#     ax.set_ylabel("Average cost of one system")
-#     ax.set_title("Trade-off: Cost vs Preventive Effectiveness")
-
-#     st.pyplot(fig)
-
-
-# # =========================================================
-# # 📊 GRAPHE 4 — Performance du détecteur
-# # =========================================================
-# def plot_detector(df):
-#     apply_streamlit_dark_theme()
-#     fig, ax = plt.subplots()
-
-#     ax.scatter(
-#         df["Précision du détecteur"],
-#         df["Taux de détection (Rappel)"],
-#         alpha=0.8
-#     )
-
-#     ax.set_xlabel("Précision du détecteur")
-#     ax.set_ylabel("Taux de détection (Rappel)")
-#     ax.set_title("Detector performance")
-
-#     st.pyplot(fig)
+    # Cost vs number of failures per system
+    with col2:
+        system_summary = df.groupby("system_id").agg(
+            total_cost=("cost_cumulated", "max"),
+            n_failures=("event_type", lambda x: (x == "failure").sum())
+        )
+        fig, ax = plt.subplots()
+        sns.scatterplot(data=system_summary, x="n_failures", y="total_cost", ax=ax)
+        ax.set_title("Cost vs number of failures per system")
+        st.pyplot(fig)
 
 
-# # =========================================================
-# # 📊 GRAPHE 5 — Corrélation entre KPI (stat descriptive)
-# # =========================================================
-# def plot_correlation(df):
-#     apply_streamlit_dark_theme()
+    # ================================
+# Paramètres et coûts retrouvés
+# ================================
+    # st.subheader("📋 Paramètres et coûts retrouvés")
 
-#     kpi_cols = [
-#         "Average of failure per month",
-#         "Average of failure per year",
-#         "Stability per year",
-#         "Preventive Effectiveness Ratio (PER)",
-#         "Précision du détecteur",
-#         "Taux de détection (Rappel)",
-#         "Average cost of one system",
-#     ]
+    # if "last_table_path" in st.session_state:
+    #     # On lit le CSV des KPI généré par la simulation
+    #     table_df = pd.read_csv(st.session_state.last_table_path)
 
-#     corr = df[kpi_cols].corr()
+    #     # On affiche tout le tableau
+    #     st.dataframe(table_df)
 
-#     fig, ax = plt.subplots()
-#     im = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+    #     # Vérifie si une colonne de coût existe
+    #     possible_cost_cols = [col for col in table_df.columns if "cost" in col.lower()]
+    #     if possible_cost_cols:
+    #         cost_col = possible_cost_cols[0]  # on prend la première trouvée
+    #         st.markdown(f"**Paramètre minimisant le coût total ({cost_col}) :**")
+    #         best_row = table_df.loc[table_df[cost_col].idxmin()]
+    #         st.dataframe(best_row)
+    #     else:
+    #         st.warning("Aucune colonne de coût trouvée dans le CSV KPI.")
 
-#     ax.set_xticks(range(len(kpi_cols)))
-#     ax.set_yticks(range(len(kpi_cols)))
-#     ax.set_xticklabels(kpi_cols, rotation=45, ha="right")
-#     ax.set_yticklabels(kpi_cols)
-
-#     fig.colorbar(im, ax=ax)
-#     ax.set_title("Correlation between KPI")
-
-#     st.pyplot(fig)
-
-
-# # =========================================================
-# # 🧭 PAGE KPI (appelée depuis app.py)
-# # =========================================================
-# def page_kpi():
-#     st.header("📈 KPI — Statistiques descriptives et analyse Monte-Carlo")
-
-#     st.caption(
-#         "Les données affichées sont **simulées temporairement** afin d’illustrer "
-#         "les analyses KPI prévues. La structure est identique au CSV final."
-#     )
-
-#     # ===== Simulation de 2 systèmes × 4 runs =====
-#     df = pd.concat(
-#         [
-#             simulate_kpi(system_id=0),
-#             simulate_kpi(system_id=1),
-#         ],
-#         ignore_index=True,
-#     )
-
-#     st.subheader("Aperçu du CSV KPI simulé")
-#     st.dataframe(df, use_container_width=True)
-
-#     st.divider()
-#     st.subheader("Stabilité intra-système")
-#     plot_stability(df)
-
-#     st.divider()
-#     st.subheader("Comparaison inter-systèmes")
-#     plot_comparison(df)
-
-#     st.divider()
-#     st.subheader("Analyse des compromis (KPI vs KPI)")
-#     plot_tradeoff(df)
-
-#     st.divider()
-#     st.subheader("Performance du détecteur")
-#     plot_detector(df)
-
-#     st.divider()
-#     st.subheader("Corrélations globales entre KPI")
-#     plot_correlation(df)
+    # else:
+    #     st.info("Aucun fichier KPI disponible. Veuillez d'abord lancer une simulation.")

@@ -3,6 +3,9 @@ from core.session import init_session
 from views.configuration import page_configuration
 from views.simulation import page_simulation
 from views.graphes import page_graphes
+from views.kpi import page_analyse_descriptive
+from pathlib import Path
+import pandas as pd
 # from views.kpi import page_kpi
 
 
@@ -16,7 +19,29 @@ st.set_page_config(
 
 init_session()
 
+query_params = st.query_params
 
+if "page" in query_params:
+    st.session_state.page = query_params["page"]
+
+
+OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+if "last_dataset" not in st.session_state:
+
+    dataset_files = list(OUTPUT_DIR.glob("sample_system_dataset_*.csv"))
+    table_files = list(OUTPUT_DIR.glob("sample_system_table_*.csv"))
+
+    if dataset_files and table_files:
+
+        # on prend les fichiers les plus récents
+        last_dataset_path = max(dataset_files, key=lambda f: f.stat().st_mtime)
+        last_table_path = max(table_files, key=lambda f: f.stat().st_mtime)
+
+        st.session_state.last_dataset = pd.read_csv(last_dataset_path)
+        st.session_state.last_dataset_path = last_dataset_path
+        st.session_state.last_table_path = last_table_path  
 # ======================================================
 # SIDEBAR — NAVIGATION
 # ======================================================
@@ -46,11 +71,12 @@ with st.sidebar:
             type="primary" if is_active else "secondary",
         ):
             st.session_state.page = page_name
+            st.query_params["page"] = page_name
 
     nav_button("Configuration", "Configuration")
     nav_button("Simulation", "Simulation")
     nav_button("Graphes", "Graphes")
-    nav_button("KPI", "KPI")
+    nav_button("Analyse descriptive", "Analyse descriptive")
 
     # st.divider()
 
@@ -74,9 +100,9 @@ elif page == "Simulation":
 elif page == "Graphes":
     page_graphes()
 
-elif page == "KPI":
+elif page == "Analyse descriptive":
     # page_kpi()
-    st.info("Page KPI à venir.")
+    page_analyse_descriptive()
 
 else:
     st.error("Page inconnue.")

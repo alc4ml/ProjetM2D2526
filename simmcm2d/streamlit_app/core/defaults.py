@@ -4,9 +4,9 @@ DEFAULT_CONFIG = {
     # =====================
     "param": {
         # Composant (Weibull)
-        "eta": 720,
-        "beta": 3,
-        "expiration": 792,
+        "eta": 7200,
+        "beta": 1.5,
+        "expiration": 720,
 
         # Inspections
         "mu": 168,
