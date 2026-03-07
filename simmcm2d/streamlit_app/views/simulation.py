@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-from simmcm2d import sample_datasets
+from simmcm2d.util import sample_datasets
 
 
 OUTPUT_DIR = Path("outputs")

@@ -1,6 +1,15 @@
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
+
+
+
+
+from pathlib import Path
+
+# ajoute le dossier simmcm2d (celui qui contient util.py) au PYTHONPATH
+sys.path.append(str(Path(__file__).resolve().parents[1].parent / "simmcm2d"))
+
+from simmcm2d.util import sample_datasets
 import streamlit as st
 from core.session import init_session
 from views.configuration import page_configuration
