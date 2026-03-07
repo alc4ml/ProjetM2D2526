@@ -1,3 +1,4 @@
+sys.path.append(os.path.dirname(__file__))
 import streamlit as st
 from core.session import init_session
 from views.configuration import page_configuration
@@ -6,6 +7,9 @@ from views.graphes import page_graphes
 from views.kpi import page_analyse_descriptive
 from pathlib import Path
 import pandas as pd
+import sys
+import os
+
 # from views.kpi import page_kpi
 
 
