@@ -1,0 +1,8 @@
+setup.py
+parameter_estimation/__init__.py
+parameter_estimation/estimate_parameters.py
+parameter_estimation.egg-info/PKG-INFO
+parameter_estimation.egg-info/SOURCES.txt
+parameter_estimation.egg-info/dependency_links.txt
+parameter_estimation.egg-info/requires.txt
+parameter_estimation.egg-info/top_level.txt

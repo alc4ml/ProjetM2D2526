@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: parameter_estimation
+Version: 0.1
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Dynamic: requires-dist
