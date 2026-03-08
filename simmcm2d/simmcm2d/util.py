@@ -24,7 +24,7 @@ def get_kpi(system_df, costs):
     
     # Number of failure per month
     failures = df[df.event_type == "failure"]
-    failures = df[df.event_type == "failure"].copy()
+    failures = df[df.event_type == "failure"].copy() 
     failures['month'] = failures['event_date'].dt.to_period("M")
 
     monthly_failures = failures.groupby("month").size()
@@ -64,6 +64,34 @@ def get_kpi(system_df, costs):
     
     year_replacement = replacement.groupby("year").size()
 
+    failures_by_system = df[df.event_type == "failure"].groupby('system_id').size()
+    # Moyenne de pannes par système sur toute la durée
+    avg_failure_lifetime = failures_by_system.mean()
+
+    failures['month'] = failures['event_date'].dt.to_period("M")
+    avg_fail_per_sys_month = failures.groupby(['month', 'system_id']).size().mean()
+
+    failures['trimestre'] = failures['event_date'].dt.to_period("Q")
+    avg_fail_per_sys_trimestre = failures.groupby(['trimestre', 'system_id']).size().mean()
+
+    failures['year'] = failures['event_date'].dt.to_period("Y")
+    avg_fail_per_sys_year = failures.groupby(['year', 'system_id']).size().mean()
+
+    # Calculs des Remplacements par système
+    replacements_only = df[df.event_type == "replacement"].copy()
+    # Moyenne de remplacements par système sur toute la durée de vie
+    avg_repl_lifetime = replacements_only.groupby('system_id').size().mean() if not replacements_only.empty else 0
+
+    replacements_only['m'] = replacements_only['event_date'].dt.to_period("M")
+    avg_r_sys_mo = replacements_only.groupby(['m', 'system_id']).size().mean()
+
+    replacements_only['q'] = replacements_only['event_date'].dt.to_period("Q")
+    avg_r_sys_tri = replacements_only.groupby(['q', 'system_id']).size().mean()
+    # Annuel
+    replacements_only['y'] = replacements_only['event_date'].dt.to_period("Y")
+    avg_r_sys_yr = replacements_only.groupby(['y', 'system_id']).size().mean()
+
+    
     # Ratio (it's the same ratio for month, trimestre and year)
     monthly_ratio = monthly_replacement.describe()["mean"] / monthly_failures.describe()["mean"]
 
@@ -73,7 +101,7 @@ def get_kpi(system_df, costs):
     rappel = detections / (detections + nb_pannes) if (detections + nb_pannes) > 0 else 0
 
     # Costs
-    
+
     df['cost_event'] = df['event_type'].map(costs)
     cost_per_system = df.groupby('system_id')['cost_cumulated'].last().reset_index()
     
@@ -115,34 +143,50 @@ def get_kpi(system_df, costs):
     cost_for_one_syst_year = fleet_kpi['Cout_Moyen_Par_Systeme_Year'].mean()
 
     KPI = {
-        "Average of failure per month": monthly_failures.describe()["mean"],
-        "Average of failure per trimestre": trimestre_failures.describe()["mean"],
-        "Average of failure per year":year_failures.describe()["mean"],
-        "Stability per month":monthly_failures.describe()["std"],
-        "Stability per trimestre":trimestre_failures.describe()["std"],
-        "Stability per year":year_failures.describe()["std"],
+        # Failure Metrics (Fleet)
+        "Average of failure per month": round(monthly_failures.mean(), 2),
+        "Average of failure per trimestre": round(trimestre_failures.mean(), 2),
+        "Average of failure per year": round(year_failures.mean(), 1),
+        
+        "Standard Deviation per month": round(monthly_failures.std(), 2),
+        "Standard Deviation per trimestre": round(trimestre_failures.std(), 2),
+        "Standard Deviation per year": round(year_failures.std(), 2),
 
-        "Average of replacement per month": monthly_replacement.describe()["mean"],
-        "Average of replacement per trimestre": trimestre_replacement.describe()["mean"],
-        "Average of replacement per year":year_replacement.describe()["mean"],
-        "Stability per month":monthly_replacement.describe()["std"],
-        "Stability per trimestre":trimestre_replacement.describe()["std"],
-        "Stability per year":year_replacement.describe()["std"],
+        # Replacement Metrics (Fleet)
+        "Average of replacement per month": round(monthly_replacement.mean(), 2),
+        "Average of replacement per trimestre": round(trimestre_replacement.mean(), 2),
+        "Average of replacement per year": round(year_replacement.mean(), 1),
         
-        "Preventive Effectiveness Ratio (PER)": monthly_ratio,
+        "Standard Deviation per month": round(monthly_replacement.std(), 2),
+        "Standard Deviation per trimestre": round(trimestre_replacement.std(), 2),
+        "Standard Deviation per year": round(year_replacement.std(), 2),
+
+        # Per System Metrics (Reliability)
+        "Average of failure per system (total life)": round(avg_failure_lifetime, 2),
+        "Average of failure per system  / month": round(avg_fail_per_sys_month, 3), # On garde 3 ici car souvent très petit
+        "Average of failure per system / trimestre": round(avg_fail_per_sys_trimestre, 2),
+        "Average of failure per system  / year": round(avg_fail_per_sys_year, 2),
+            
+        "Average of replacement per system (total life)": round(avg_repl_lifetime, 2),
+        "Average of replacement per system / month": round(avg_r_sys_mo, 3),
+        "Average of replacement per system / trimestre": round(avg_r_sys_tri, 2),
+        "Average of replacement per system / year": round(avg_r_sys_yr, 2),
         
-        "Précision du détecteur": round(precision, 2),
-        "Taux de détection (Rappel)": round(rappel, 2),
+        # Efficiency and Detection
+        "Preventive Effectiveness Ratio (PER)": round(monthly_ratio, 2),
+        "Precision of the detector": round(precision, 2),
+        "Recall": round(rappel, 2),
         
-        "Total average cost of one system": cost_per_system['cost_cumulated'].describe()["mean"],
-        "Standard Deviation": cost_per_system['cost_cumulated'].describe()["std"],
+        # Cost Metrics
+        "Total average cost of one system": round(cost_per_system['cost_cumulated'].mean(), 2),
+        "Standard Deviation": round(cost_per_system['cost_cumulated'].std(), 2),
         
-        "Total cost of the fleet per month": moyenne_mensuelle_flotte,
-        "Average cost for 1 system per month": cost_for_one_syst,
-        "Total cost of the fleet per trimestre": moyenne_trimestrielle_flotte,
-        "Average cost for 1 system per trimestre": cost_for_one_syst_trimestre,
-        "Total cost of the fleet per year": moyenne_annuelle_flotte,
-        "Average cost for 1 system per year": cost_for_one_syst_year
+        "Total cost of the fleet per month": round(moyenne_mensuelle_flotte, 2),
+        "Average cost for 1 system per month": round(cost_for_one_syst, 2),
+        "Total cost of the fleet per trimestre": round(moyenne_trimestrielle_flotte, 2),
+        "Average cost for 1 system per trimestre": round(cost_for_one_syst_trimestre, 2),
+        "Total cost of the fleet per year": round(moyenne_annuelle_flotte, 2),
+        "Average cost for 1 system per year": round(cost_for_one_syst_year, 2)
     }
     return KPI
 
