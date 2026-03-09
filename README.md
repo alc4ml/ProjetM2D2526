@@ -12,7 +12,7 @@ The project combines **simulation, statistical analysis, parameter estimation, a
 - **simmcm2d** – Simulation library for fleet degradation and maintenance events  
 - **pipmcm2d** – Pipeline for parameter estimation and policy optimization  
 - **Pipeline** – Implementation of the full pipeline and Streamlit application  
-- **Analysis** – Notebooks for data analysis and experimentation  
+- **Analysis** – Notebooks for data analysis and experimentation as well as study of the parameters impact 
 - **outputs** – Generated datasets and simulation outputs  
 - **Livrables** – Project deliverables (reports, presentation, documentation)  
 - **requirements.txt** – Python dependencies  
