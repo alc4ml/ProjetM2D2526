@@ -66,16 +66,16 @@ def get_kpi(system_df, costs):
 
     failures_by_system = df[df.event_type == "failure"].groupby('system_id').size()
     # Moyenne de pannes par système sur toute la durée
-    avg_failure_lifetime = failures_by_system.mean()
+    avg_fail_lifetime = failures_by_system.mean()
 
     failures['month'] = failures['event_date'].dt.to_period("M")
-    avg_fail_per_sys_month = failures.groupby(['month', 'system_id']).size().mean()
+    avg_f_sys_mo = failures.groupby(['month', 'system_id']).size().mean()
 
     failures['trimestre'] = failures['event_date'].dt.to_period("Q")
-    avg_fail_per_sys_trimestre = failures.groupby(['trimestre', 'system_id']).size().mean()
+    avg_f_sys_tri = failures.groupby(['trimestre', 'system_id']).size().mean()
 
     failures['year'] = failures['event_date'].dt.to_period("Y")
-    avg_fail_per_sys_year = failures.groupby(['year', 'system_id']).size().mean()
+    avg_f_sys_yr = failures.groupby(['year', 'system_id']).size().mean()
 
     # Calculs des Remplacements par système
     replacements_only = df[df.event_type == "replacement"].copy()
@@ -98,7 +98,7 @@ def get_kpi(system_df, costs):
     detections = len(df[df['FF'] == True])
     fausses_alertes = len(df[df['FF'] == False])
     precision = detections / (detections + fausses_alertes) if (detections + fausses_alertes) > 0 else 0
-    rappel = detections / (detections + nb_pannes) if (detections + nb_pannes) > 0 else 0
+    rappel = detections / nb_pannes if nb_pannes > 0 else 0
 
     # Costs
 
@@ -114,8 +114,9 @@ def get_kpi(system_df, costs):
     moyenne_mensuelle_flotte = fleet_kpi['Cout_Total_Flotte'].mean() # Calculer la moyenne globale de la flotte sur un mois
     
     # Mean cost for 1 system per month
-    fleet_kpi['Cout_Moyen_Par_Systeme'] = fleet_kpi['Cout_Total_Flotte'] / fleet_kpi['Nombre_Systemes']
-    cost_for_one_syst = fleet_kpi['Cout_Moyen_Par_Systeme'].mean()
+    cost_per_sys_per_month = df.groupby(['month', 'system_id'])['cost_event'].sum().reset_index()
+    average_cost_per_month = cost_per_sys_per_month.groupby('month')['cost_event'].mean() 
+    cost_for_one_syst_month = average_cost_per_month.mean()
 
      # Total cost of the fleet per trimestre
     df['trimestre'] = df['event_date'].dt.to_period('Q')
@@ -126,8 +127,9 @@ def get_kpi(system_df, costs):
     moyenne_trimestrielle_flotte = fleet_kpi['Cout_Total_Flotte_Trimestre'].mean() # Calculer la moyenne globale de la flotte sur un trimestre
         
     # Mean cost for 1 system per trimestre
-    fleet_kpi['Cout_Moyen_Par_Systeme_Trimestre'] = fleet_kpi['Cout_Total_Flotte_Trimestre'] / fleet_kpi['Nombre_Systemes_Trimestre']
-    cost_for_one_syst_trimestre = fleet_kpi['Cout_Moyen_Par_Systeme_Trimestre'].mean()
+    cost_per_sys_per_trim = df.groupby(['trimestre', 'system_id'])['cost_event'].sum().reset_index()
+    average_cost_per_trimestre = cost_per_sys_per_trim.groupby('trimestre')['cost_event'].mean() # Moyenne par trimestre: Pour chaque trimestre, on calcule la moyenne des coûts des systèmes présents
+    cost_for_one_syst_trimestre = average_cost_per_trimestre.mean() # Moyenne des moyennes: On fait la moyenne sur toutes les périodes trimestrielles
 
 
     # Total cost of the fleet per year
@@ -139,54 +141,59 @@ def get_kpi(system_df, costs):
     moyenne_annuelle_flotte = fleet_kpi['Cout_Total_Flotte_Year'].mean() # Calculer la moyenne globale de la flotte sur une année
         
     # Mean cost for 1 system per year
-    fleet_kpi['Cout_Moyen_Par_Systeme_Year'] = fleet_kpi['Cout_Total_Flotte_Year'] / fleet_kpi['Nombre_Systemes_Year']
-    cost_for_one_syst_year = fleet_kpi['Cout_Moyen_Par_Systeme_Year'].mean()
+    cost_per_sys_per_year = df.groupby(['year', 'system_id'])['cost_event'].sum().reset_index()
+    average_cost_per_year = cost_per_sys_per_year.groupby('year')['cost_event'].mean() 
+    cost_for_one_syst_year = average_cost_per_year.mean() 
 
+    
     KPI = {
         # Failure Metrics (Fleet)
-        "Average of failure per month": round(monthly_failures.mean(), 2),
-        "Average of failure per trimestre": round(trimestre_failures.mean(), 2),
-        "Average of failure per year": round(year_failures.mean(), 1),
+        "avg_fail_m": round(monthly_failures.mean(), 2),
+        "avg_fail_t": round(trimestre_failures.mean(), 2),
+        "avg_fail_y": round(year_failures.mean(), 1),
         
-        "Standard Deviation per month": round(monthly_failures.std(), 2),
-        "Standard Deviation per trimestre": round(trimestre_failures.std(), 2),
-        "Standard Deviation per year": round(year_failures.std(), 2),
+        "std_fail_m": round(monthly_failures.std(), 2),
+        "std_fail_t": round(trimestre_failures.std(), 2),
+        "std_fail_y": round(year_failures.std(), 2),
 
         # Replacement Metrics (Fleet)
-        "Average of replacement per month": round(monthly_replacement.mean(), 2),
-        "Average of replacement per trimestre": round(trimestre_replacement.mean(), 2),
-        "Average of replacement per year": round(year_replacement.mean(), 1),
+        "avg_repl_m": round(monthly_replacement.mean(), 2),
+        "avg_repl_t": round(trimestre_replacement.mean(), 2),
+        "avg_repl_y": round(year_replacement.mean(), 1),
         
-        "Standard Deviation per month": round(monthly_replacement.std(), 2),
-        "Standard Deviation per trimestre": round(trimestre_replacement.std(), 2),
-        "Standard Deviation per year": round(year_replacement.std(), 2),
+        "std_repl_m": round(monthly_replacement.std(), 2),
+        "std_repl_t": round(trimestre_replacement.std(), 2),
+        "std_repl_y": round(year_replacement.std(), 2),
 
         # Per System Metrics (Reliability)
-        "Average of failure per system (total life)": round(avg_failure_lifetime, 2),
-        "Average of failure per system  / month": round(avg_fail_per_sys_month, 3), # On garde 3 ici car souvent très petit
-        "Average of failure per system / trimestre": round(avg_fail_per_sys_trimestre, 2),
-        "Average of failure per system  / year": round(avg_fail_per_sys_year, 2),
+        "avg_fail_syst_total": round(avg_fail_lifetime, 2),
+        "avg_fail_syst_m": round(avg_f_sys_mo, 3), # On garde 3 ici car souvent très petit
+        "avg_fail_syst_t": round(avg_f_sys_tri, 2),
+        "avg_fail_syst_y": round(avg_f_sys_yr, 2),
             
-        "Average of replacement per system (total life)": round(avg_repl_lifetime, 2),
-        "Average of replacement per system / month": round(avg_r_sys_mo, 3),
-        "Average of replacement per system / trimestre": round(avg_r_sys_tri, 2),
-        "Average of replacement per system / year": round(avg_r_sys_yr, 2),
+        "avg_repl_syst_total": round(avg_repl_lifetime, 2),
+        "avg_repl_syst_m": round(avg_r_sys_mo, 3),
+        "avg_repl_syst_t": round(avg_r_sys_tri, 2),
+        "avg_repl_syst_y": round(avg_r_sys_yr, 2),
         
         # Efficiency and Detection
-        "Preventive Effectiveness Ratio (PER)": round(monthly_ratio, 2),
-        "Precision of the detector": round(precision, 2),
+        "PER": round(monthly_ratio, 2),
+        "Precision": round(precision, 2),
         "Recall": round(rappel, 2),
         
         # Cost Metrics
-        "Total average cost of one system": round(cost_per_system['cost_cumulated'].mean(), 2),
-        "Standard Deviation": round(cost_per_system['cost_cumulated'].std(), 2),
+        "cost_per_syst": round(cost_per_system['cost_cumulated'].mean(), 2), # Total average cost of 1 system
+        "Std_per_syst": round(cost_per_system['cost_cumulated'].std(), 2), # ecart type 1 system
         
-        "Total cost of the fleet per month": round(moyenne_mensuelle_flotte, 2),
-        "Average cost for 1 system per month": round(cost_for_one_syst, 2),
-        "Total cost of the fleet per trimestre": round(moyenne_trimestrielle_flotte, 2),
-        "Average cost for 1 system per trimestre": round(cost_for_one_syst_trimestre, 2),
-        "Total cost of the fleet per year": round(moyenne_annuelle_flotte, 2),
-        "Average cost for 1 system per year": round(cost_for_one_syst_year, 2)
+        "cost_fleet_m": round(moyenne_mensuelle_flotte, 2), # Total cost of the fleet per month
+        "avg_cost_syst_m": round(cost_for_one_syst_month, 2), # Average cost for 1 system per month
+        
+        "cost_fleet_t": round(moyenne_trimestrielle_flotte, 2),
+        "avg_cost_syst_t": round(cost_for_one_syst_trimestre, 2),
+        
+        "cost_fleet_y": round(moyenne_annuelle_flotte, 2),
+        "avg_cost_syst_y": round(cost_for_one_syst_year, 2)
+        
     }
     return KPI
 
