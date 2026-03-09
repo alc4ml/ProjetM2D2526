@@ -46,9 +46,15 @@ class Inspector:
         age_cdf = self.component_cdf(component)
 
         # adds imprecision by sampling from a Beta
-        var = self.deviation*age_cdf*(1-age_cdf)
-        a = age_cdf*(age_cdf*(1-age_cdf)/var-1)
-        b = (1-age_cdf)*(age_cdf*(1-age_cdf)/var-1)
+
+        eps = np.finfo(float).eps
+
+        var = max(self.deviation*age_cdf*(1-age_cdf), eps) # avoid division by zero
+        a = max(age_cdf*(age_cdf*(1-age_cdf)/var-1), eps) 
+        b = max((1-age_cdf)*(age_cdf*(1-age_cdf)/var-1), eps)
+        
+        # sample from beta
+
         age_beta = np.random.beta(a,b)
 
         # conditional report
@@ -154,10 +160,11 @@ class Manager:
     
 
     def birth_death_rates(self):
-        n = len(self.systems)
+
+        n = max(1, len(self.systems))
         K = self.n_systems
         birth_rate = self.param["r"] * n * (1-n/K)
-        death_rate = self.param["nu"]
+        death_rate = n * self.param["nu"]
 
         return birth_rate, death_rate
     
